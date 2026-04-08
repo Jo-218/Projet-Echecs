@@ -6,8 +6,12 @@ class Position:
     def __str__(self):
         return f"{self.column}{self.row}"
 
+import tkinter as tk
 
-#c pour avoir deja les pions
+root = tk.Tk()
+root.title("Jeu d'échecs")
+root.mainloop()
+
 plateau = [
     ["tour", "cavalier", "fou", "reine", "roi", "fou", "cavalier", "tour"],
     ["pion"]*8,
