@@ -3,4 +3,3 @@ class Position:
         self.column = column
         self.row = row
 
-hqhq
