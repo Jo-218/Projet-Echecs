@@ -4,6 +4,21 @@ root = tk.Tk()
 root.title("Jeu d'échecs")
 root.mainloop()
 
+taille_case = 60
+
+canvas = tk.Canvas(root, width=8*taille_case, height=8*taille_case)
+canvas.pack()
+
+for ligne in range(8):
+    for col in range(8):
+        couleur = "white" if (ligne + col) % 2 == 0 else "gray"
+        x1 = col * taille_case
+        y1 = ligne * taille_case
+        x2 = x1 + taille_case
+        y2 = y1 + taille_case
+        canvas.create_rectangle(x1, y1, x2, y2, fill=couleur)
+
+root.mainloop()
 plateau = [
     ["tour", "cavalier", "fou", "reine", "roi", "fou", "cavalier", "tour"],
     ["pion"]*8,
