@@ -5,3 +5,16 @@ class Position:
 
     def __str__(self):
         return f"{self.column}{self.row}"
+
+
+#c pour avoir deja les pions
+plateau = [
+    ["tour", "cavalier", "fou", "reine", "roi", "fou", "cavalier", "tour"],
+    ["pion"]*8,
+    [""]*8,
+    [""]*8,
+    [""]*8,
+    [""]*8,
+    ["pion"]*8,
+    ["tour", "cavalier", "fou", "reine", "roi", "fou", "cavalier", "tour"]
+]
