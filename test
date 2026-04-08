@@ -159,3 +159,13 @@ class Chess(tk.Tk):
 if __name__ == "__main__":
     app = Chess()
     app.mainloop()
+
+
+
+
+
+
+
+
+
+
