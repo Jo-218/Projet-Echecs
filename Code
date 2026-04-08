@@ -1,47 +1,19 @@
 import tkinter as tk
 
+# =========================
+# Fenêtre
+# =========================
 root = tk.Tk()
 root.title("Jeu d'échecs")
 
-taille_case = 60
+taille_case = 80
 
 canvas = tk.Canvas(root, width=8*taille_case, height=8*taille_case)
 canvas.pack()
 
-
-for ligne in range(8):
-    for col in range(8):
-        couleur = "white" if (ligne + col) % 2 == 0 else "gray"
-        x1 = col * taille_case
-        y1 = ligne * taille_case
-        x2 = x1 + taille_case
-        y2 = y1 + taille_case
-        canvas.create_rectangle(x1, y1, x2, y2, fill=couleur)
-
-def dessiner_piece(ligne, col, piece):
-    x = col * taille_case + taille_case // 2
-    y = ligne * taille_case + taille_case // 2
-    canvas.create_text(x, y, text=piece, font=("Arial", 30))
-
-pieces_noires = ["♜","♞","♝","♛","♚","♝","♞","♜"]
-for col in range(8):
-    dessiner_piece(0, col, pieces_noires[col])
-    dessiner_piece(1, col, "♟")
-
-pieces_blanches = ["♖","♘","♗","♕","♔","♗","♘","♖"]
-for col in range(8):
-    dessiner_piece(7, col, pieces_blanches[col])
-    dessiner_piece(6, col, "♙")
-
-
-def clic(event):
-    col = event.x // taille_case
-    ligne = event.y // taille_case
-    print(f"Case cliquée : {ligne}, {col}")
-
-canvas.bind("<Button-1>", clic)
-
-
+# =========================
+# Plateau logique
+# =========================
 plateau = [
     ["tour", "cavalier", "fou", "reine", "roi", "fou", "cavalier", "tour"],
     ["pion"]*8,
@@ -53,6 +25,88 @@ plateau = [
     ["tour", "cavalier", "fou", "reine", "roi", "fou", "cavalier", "tour"]
 ]
 
+# =========================
+# Dessin du plateau
+# =========================
+def dessiner_plateau():
+    for ligne in range(8):
+        for col in range(8):
+            if (ligne + col) % 2 == 0:
+                couleur = "#F0D9B5"
+            else:
+                couleur = "#B58863"
+
+            x1 = col * taille_case
+            y1 = ligne * taille_case
+            x2 = x1 + taille_case
+            y2 = y1 + taille_case
+
+            canvas.create_rectangle(x1, y1, x2, y2, fill=couleur)
+
+# =========================
+# Correspondance pièces → symboles
+# =========================
+symboles = {
+    "tour": ["♜", "♖"],
+    "cavalier": ["♞", "♘"],
+    "fou": ["♝", "♗"],
+    "reine": ["♛", "♕"],
+    "roi": ["♚", "♔"],
+    "pion": ["♟", "♙"]
+}
+
+# =========================
+# Dessiner les pièces
+# =========================
+def dessiner_pieces():
+    for ligne in range(8):
+        for col in range(8):
+            piece = plateau[ligne][col]
+            if piece != "":
+                # noir en haut, blanc en bas
+                if ligne < 2:
+                    symbole = symboles[piece][0]
+                else:
+                    symbole = symboles[piece][1]
+
+                x = col * taille_case + taille_case // 2
+                y = ligne * taille_case + taille_case // 2
+
+                canvas.create_text(x, y, text=symbole, font=("Arial", 40))
+
+# =========================
+# Gestion du clic
+# =========================
+selection = None
+
+def clic(event):
+    global selection
+
+    col = event.x // taille_case
+    ligne = event.y // taille_case
+
+    print(f"Click sur {ligne}, {col}")
+
+    if selection is None:
+        selection = (ligne, col)
+        print("Sélection :", selection)
+    else:
+        # déplacement simple (sans règles)
+        l1, c1 = selection
+        plateau[ligne][col] = plateau[l1][c1]
+        plateau[l1][c1] = ""
+
+        selection = None
+
+        canvas.delete("all")
+        dessiner_plateau()
+        dessiner_pieces()
+
+canvas.bind("<Button-1>", clic)
+
+# =========================
+# Classe Position (optionnelle)
+# =========================
 class Position:
     def __init__(self, column: str, row: int):
         self.column = column
@@ -60,5 +114,11 @@ class Position:
 
     def __str__(self):
         return f"{self.column}{self.row}"
+
+# =========================
+# Lancement affichage
+# =========================
+dessiner_plateau()
+dessiner_pieces()
 
 root.mainloop()
