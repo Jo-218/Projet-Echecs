@@ -1,11 +1,3 @@
-class Position:
-    def __init__(self, column: str, row: int):
-        self.column = column
-        self.row = row
-
-    def __str__(self):
-        return f"{self.column}{self.row}"
-
 import tkinter as tk
 
 root = tk.Tk()
@@ -22,3 +14,12 @@ plateau = [
     ["pion"]*8,
     ["tour", "cavalier", "fou", "reine", "roi", "fou", "cavalier", "tour"]
 ]
+
+
+class Position:
+    def __init__(self, column: str, row: int):
+        self.column = column
+        self.row = row
+
+    def __str__(self):
+        return f"{self.column}{self.row}"
