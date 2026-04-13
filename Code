@@ -1,183 +1,507 @@
-import tkinter as tk
-from tkinter import simpledialog
-
-# =========================
-# POSITION
-# =========================
-class Position:
-    def __init__(self, col, row):
-        self.col = col  # 0-7
-        self.row = row  # 0-7
-
-    def __str__(self):
-        return f"{chr(self.col + 97)}{8 - self.row}"
+from pieces import *
 
 
-# =========================
-# PIECES
-# =========================
+class Board:
+    def __init__(self, screen) -> None:
+        self.screen = screen
+        self.board = [
+            ["r", "n", "b", "q", "k", "b", "n", "r"],
+            ["p", "p", "p", "p", "p", "p", "p", "p"],
+            ["-", "-", "-", "-", "-", "-", "-", "-"],
+            ["-", "-", "-", "-", "-", "-", "-", "-"],
+            ["-", "-", "-", "-", "-", "-", "-", "-"],
+            ["-", "-", "-", "-", "-", "-", "-", "-"],
+            ["P", "P", "P", "P", "P", "P", "P", "P"],
+            ["R", "N", "B", "Q", "K", "B", "N", "R"],
+        ]
+        self.selectedPiece = None
+        self.checkMate = False
+        self.whiteToPlay = True
+        self.running = True
+        self.fps = py.time.Clock()
+        self.possibleMoves = []
+
+    def PrintBoard(self):
+        for y in range(8):
+            for x in range(8):
+                if self.board[y][x] == "-":
+                    continue
+
+                Pieces[self.board[y][x]].DisplayPiece(x, y)
+
+    def Events(self):
+        for event in py.event.get():
+            if event.type == py.QUIT:
+                self.running = False
+
+            elif event.type == py.MOUSEBUTTONDOWN:
+                if event.button != 1:
+                    return
+
+                pos = py.mouse.get_pos()
+                x, y = int(pos[0] / 80), int(pos[1] / 80)
+
+                if self.selectedPiece is None:
+                    if self.board[y][x] == "-":
+                        return
+                    if (self.board[y][x].islower() and self.whiteToPlay) or (
+                            self.board[y][x].isupper() and not self.whiteToPlay
+                    ):
+                        return
+
+                    self.selectedPiece = [x, y, self.board[y][x]]
+                    # Create a list of all possible moves
+                    # by calling the IsMoveLegal function
+                    # for each position of the selected piece
+
+                    self.possibleMoves.clear()
+                    for i in range(8):
+                        for j in range(8):
+                            temp_board = [row[:] for row in self.board]
+                            if Pieces[self.selectedPiece[2]].IsMoveLegal(
+                                    temp_board, self.selectedPiece[:2], [i, j], True) is not False:
+                                self.possibleMoves.append([i, j])
+
+                else:
+                    dest = [x, y]
+                    if dest == self.selectedPiece[:2]:
+                        self.selectedPiece = None
+                        self.possibleMoves.clear()
+                        return
+
+                    Move = Pieces[self.selectedPiece[2]].IsMoveLegal(
+                        self.board, self.selectedPiece[:2], dest, False
+                    )
+
+                    if not Move:
+                        return
+                    else:
+                        self.possibleMoves.clear()
+                        self.whiteToPlay = not self.whiteToPlay
+                        self.board = Move
+
+                        if self.selectedPiece[2] == "r":
+                            if self.selectedPiece[:2] == [0, 0]:
+                                Pieces["k"].rookMoved[1] = True
+                            elif self.selectedPiece[:2] == [7, 0]:
+                                Pieces["k"].rookMoved[0] = True
+
+                        elif self.selectedPiece[2] == "R":
+                            if self.selectedPiece[:2] == [0, 7]:
+                                Pieces["K"].rookMoved[1] = True
+                            elif self.selectedPiece[:2] == [7, 7]:
+                                Pieces["K"].rookMoved[0] = True
+
+                        self.selectedPiece = None
+
+    def Display(self):
+        self.screen.fill("black")
+        self.screen.blit(bgImg, (0, 0))
+
+        if self.selectedPiece is not None:
+            rect = py.rect.Rect(
+                self.selectedPiece[0] * 80, self.selectedPiece[1] * 80, 80, 80
+            )
+            py.draw.rect(self.screen, "yellow", rect)
+
+        self.PrintBoard()
+
+        for move in self.possibleMoves:
+            py.draw.circle(self.screen, "darkgray", (move[0] * 80 + 40, move[1] * 80 + 40), 10)
+
+        py.display.flip()
+
+    def Run(self):
+        while self.running:
+            self.Events()
+            self.Display()
+            self.fps.tick(60)
+
+
+Pieces = {
+    "p": Pawn("b"),
+    "n": Knight("b"),
+    "b": Bishop("b"),
+    "r": Rook("b"),
+    "q": Queen("b"),
+    "k": King("b"),
+    "P": Pawn("w"),
+    "N": Knight("w"),
+    "B": Bishop("w"),
+    "R": Rook("w"),
+    "Q": Queen("w"),
+    "K": King("w"),
+}
+
+
+def Main():
+    py.display.set_caption("Chess.tom")
+    py.display.set_icon(py.image.load("../img/Icon.png"))
+
+    Game = Board(window)
+    Game.Run()
+
+
+if __name__ == "__main__":
+    Main()
+
+import pygame as py
+
+window = py.display.set_mode((640, 640))
+
+bgImg = py.image.load("../img/Board.png", "png")
+bgImg = py.transform.scale(bgImg, (640, 640))
+
+LastMove = None
+
+
 class Piece:
-    def __init__(self, position, color):
-        self.position = position
-        self.color = color  # 0 = blanc, 1 = noir
+    def __init__(self, color) -> None:
+        self.color = color
 
-    def is_valid_move(self, new_pos, board):
-        return True  # simplifié
+    def IsMoveLegal(self, board, loc, dest, checkingMoves):
+        pass
+
+    def DisplayPiece(self, x, y):
+        window.blit(self.image, (x * 80, y * 80))
 
 
 class Pawn(Piece):
-    def is_valid_move(self, new_pos, board):
-        direction = -1 if self.color == 0 else 1
-        return new_pos.col == self.position.col and \
-               new_pos.row == self.position.row + direction
+    def __init__(self, color) -> None:
+        super().__init__(color)
+        self.image = py.image.load(
+            "../img/Wpawn.png" if self.color == "w" else "../img/Bpawn.png"
+        )
+        self.image = py.transform.scale(self.image, (80, 80))
+
+    def IsMoveLegal(self, board, loc, dest, checkingMoves):
+        global LastMove
+
+        x_loc, y_loc = loc[0], loc[1]
+        x_dest, y_dest = dest[0], dest[1]
+
+        if (
+                (y_loc - y_dest == 1 and self.color == "w")
+                or (y_loc - y_dest == -1 and self.color == "b")
+        ) and x_loc - x_dest == 0:
+            if board[y_dest][x_dest] == "-":
+                if self.PawnPromotion(y_dest):
+                    board[y_dest][x_dest] = "Q" if self.color == "w" else "q"
+                    board[y_loc][x_loc] = "-"
+                else:
+                    board[y_dest][x_dest] = "P" if self.color == "w" else "p"
+                    board[y_loc][x_loc] = "-"
+                if not checkingMoves: LastMove = None
+                return board
+
+        elif (
+                (y_loc - y_dest == 2 and self.color == "w")
+                or (y_loc - y_dest == -2 and self.color == "b")
+        ) and x_loc - x_dest == 0:
+            if (
+                    board[y_dest][x_dest] == "-"
+                    and board[y_dest + 1 if self.color == "w" else y_dest - 1][x_dest]
+                    == "-"
+            ):
+                if y_loc == 1 or y_loc == 6:
+                    board[y_dest][x_dest] = "P" if self.color == "w" else "p"
+                    board[y_loc][x_loc] = "-"
+                    if not checkingMoves: LastMove = x_dest
+                    return board
+
+        elif abs(x_loc - x_dest) == 1 and (
+                (y_loc - y_dest == 1 and self.color == "w")
+                or (y_loc - y_dest == -1 and self.color == "b")
+        ):
+            if (board[y_dest][x_dest].islower() and self.color == "w") or (
+                    board[y_dest][x_dest].isupper() and self.color == "b"
+            ):
+                if self.PawnPromotion(y_dest):
+                    board[y_dest][x_dest] = "Q" if self.color == "w" else "q"
+                    board[y_loc][x_loc] = "-"
+                else:
+                    board[y_dest][x_dest] = "P" if self.color == "w" else "p"
+                    board[y_loc][x_loc] = "-"
+                if not checkingMoves: LastMove = None
+                return board
+
+            elif board[y_dest][x_dest] == "-" and x_dest == LastMove and ((y_loc == 3 and self.color == "w") or (y_loc == 4 and self.color == "b")):
+                board[y_dest][x_dest] = "P" if self.color == "w" else "p"
+                board[y_loc][x_loc] = "-"
+                board[(y_dest + 1) if self.color == "w" else (y_dest - 1)][x_dest] = "-"
+                if not checkingMoves: LastMove = None
+                return board
+
+        return False
+
+    def PawnPromotion(self, y_dest):
+        if y_dest == 0 or y_dest == 7:
+            return True
 
 
 class Knight(Piece):
-    def is_valid_move(self, new_pos, board):
-        dx = abs(new_pos.col - self.position.col)
-        dy = abs(new_pos.row - self.position.row)
-        return (dx, dy) in [(1, 2), (2, 1)]
+    def __init__(self, color) -> None:
+        super().__init__(color)
+        self.image = py.image.load(
+            "../img/Wknig.png" if self.color == "w" else "../img/Bknig.png"
+        )
+        self.image = py.transform.scale(self.image, (80, 80))
+
+    def IsMoveLegal(self, board, loc, dest, checkingMoves):
+        global LastMove
+
+        x_loc, y_loc = loc[0], loc[1]
+        x_dest, y_dest = dest[0], dest[1]
+
+        if (abs(x_dest - x_loc) == 2 and abs(y_dest - y_loc) == 1) or (
+                abs(x_dest - x_loc) == 1 and abs(y_dest - y_loc) == 2
+        ):
+            if (board[y_dest][x_dest].islower() and self.color == "b") or (
+                    board[y_dest][x_dest].isupper() and self.color == "w"
+            ):
+                return False
+            board[y_dest][x_dest] = "N" if self.color == "w" else "n"
+            board[y_loc][x_loc] = "-"
+            if not checkingMoves: LastMove = None
+            return board
+
+        return False
 
 
 class Bishop(Piece):
-    def is_valid_move(self, new_pos, board):
-        return abs(new_pos.col - self.position.col) == abs(new_pos.row - self.position.row)
+    def __init__(self, color) -> None:
+        super().__init__(color)
+        self.image = py.image.load(
+            "../img/Wbish.png" if self.color == "w" else "../img/Bbish.png"
+        )
+        self.image = py.transform.scale(self.image, (80, 80))
+
+    def IsMoveLegal(self, board, loc, dest, checkingMoves):
+        global LastMove
+
+        if loc == dest:
+            return False
+
+        x_loc, y_loc = loc[0], loc[1]
+        x_dest, y_dest = dest[0], dest[1]
+
+        if abs(x_dest - x_loc) == abs(y_dest - y_loc):
+            if (board[y_dest][x_dest].islower() and self.color == "b") or (
+                    board[y_dest][x_dest].isupper() and self.color == "w"
+            ):
+                return False
+            if self.PathIsClear(board, loc, dest):
+                board[y_dest][x_dest] = "B" if self.color == "w" else "b"
+                board[y_loc][x_loc] = "-"
+                if not checkingMoves: LastMove = None
+                return board
+
+        return False
+
+    def PathIsClear(self, board, loc, dest):
+        x_loc, y_loc = loc[0], loc[1]
+        x_dest, y_dest = dest[0], dest[1]
+
+        Xsteps = 1 if x_dest > x_loc else -1
+        Ysteps = 1 if y_dest > y_loc else -1
+
+        col, row = x_loc + Xsteps, y_loc + Ysteps
+
+        while col != x_dest:
+            if board[row][col] != "-":
+                return False
+
+            col += Xsteps
+            row += Ysteps
+
+        return True
+
+
+class Rook(Piece):
+    def __init__(self, color) -> None:
+        super().__init__(color)
+        self.image = py.image.load(
+            "../img/Wrook.png" if self.color == "w" else "../img/Brook.png"
+        )
+        self.image = py.transform.scale(self.image, (80, 80))
+
+    def IsMoveLegal(self, board, loc, dest, checkingMoves):
+        global LastMove
+
+        if loc == dest:
+            return False
+
+        x_loc, y_loc = loc[0], loc[1]
+        x_dest, y_dest = dest[0], dest[1]
+
+        if (abs(x_loc - x_dest) > 0 and abs(y_loc - y_dest) == 0) or (
+                abs(x_loc - x_dest) == 0 and abs(y_loc - y_dest) > 0
+        ):
+            if (board[y_dest][x_dest].islower() and self.color == "b") or (
+                    board[y_dest][x_dest].isupper() and self.color == "w"
+            ):
+                return False
+            if self.PathIsClear(board, loc, dest):
+                board[y_dest][x_dest] = "R" if self.color == "w" else "r"
+                board[y_loc][x_loc] = "-"
+                if not checkingMoves: LastMove = None
+                return board
+
+        return False
+
+    def PathIsClear(self, board, loc, dest):
+        x_loc, y_loc = loc[0], loc[1]
+        x_dest, y_dest = dest[0], dest[1]
+
+        stepsRow = 0 if y_loc == y_dest else 1 if y_loc < y_dest else -1
+        stepsCol = 0 if x_loc == x_dest else 1 if x_loc < x_dest else -1
+
+        row, col = y_loc + stepsRow, x_loc + stepsCol
+        while (col != x_dest) if y_loc == y_dest else (row != y_dest):
+            if board[row][col] != "-":
+                return False
+
+            row += stepsRow
+            col += stepsCol
+
+        return True
 
 
 class Queen(Piece):
-    def is_valid_move(self, new_pos, board):
-        dx = abs(new_pos.col - self.position.col)
-        dy = abs(new_pos.row - self.position.row)
-        return dx == dy or dx == 0 or dy == 0
+    def __init__(self, color) -> None:
+        super().__init__(color)
+        self.image = py.image.load(
+            "../img/Wqueen.png" if self.color == "w" else "../img/Bqueen.png"
+        )
+        self.image = py.transform.scale(self.image, (80, 80))
+
+    def IsMoveLegal(self, board, loc, dest, checkingMoves):
+        global LastMove
+
+        if loc == dest:
+            return False
+
+        x_loc, y_loc = loc[0], loc[1]
+        x_dest, y_dest = dest[0], dest[1]
+
+        if abs(x_dest - x_loc) == abs(y_dest - y_loc):
+            if (board[y_dest][x_dest].islower() and self.color == "b") or (
+                    board[y_dest][x_dest].isupper() and self.color == "w"
+            ):
+                return False
+            if self.PathIsClear(board, loc, dest):
+                board[y_dest][x_dest] = "Q" if self.color == "w" else "q"
+                board[y_loc][x_loc] = "-"
+                if not checkingMoves: LastMove = None
+                return board
+
+        elif (abs(x_loc - x_dest) > 0 and abs(y_loc - y_dest) == 0) or (
+                abs(x_loc - x_dest) == 0 and abs(y_loc - y_dest) > 0
+        ):
+            if (board[y_dest][x_dest].islower() and self.color == "b") or (
+                    board[y_dest][x_dest].isupper() and self.color == "w"
+            ):
+                return False
+            if self.PathIsClear(board, loc, dest):
+                board[y_dest][x_dest] = "Q" if self.color == "w" else "q"
+                board[y_loc][x_loc] = "-"
+                if not checkingMoves: LastMove = None
+                return board
+
+        return False
+
+    def PathIsClear(self, board, loc, dest):
+        x_loc, y_loc = loc[0], loc[1]
+        x_dest, y_dest = dest[0], dest[1]
+
+        stepsRow = 0 if y_loc == y_dest else 1 if y_loc < y_dest else -1
+        stepsCol = 0 if x_loc == x_dest else 1 if x_loc < x_dest else -1
+
+        row, col = y_loc + stepsRow, x_loc + stepsCol
+        while (col != x_dest) if y_loc == y_dest else (row != y_dest):
+            if board[row][col] != "-":
+                return False
+
+            row += stepsRow
+            col += stepsCol
+
+        return True
 
 
 class King(Piece):
-    def is_valid_move(self, new_pos, board):
-        dx = abs(new_pos.col - self.position.col)
-        dy = abs(new_pos.row - self.position.row)
-        return dx <= 1 and dy <= 1
+    def __init__(self, color) -> None:
+        super().__init__(color)
+        self.hasMoved = False
+        self.rookMoved = [False, False]
+        self.image = py.image.load(
+            "../img/Wking.png" if self.color == "w" else "../img/Bking.png"
+        )
+        self.image = py.transform.scale(self.image, (80, 80))
+
+    def IsMoveLegal(self, board, loc, dest, checkingMoves):
+        global LastMove
+
+        if loc == dest:
+            return False
+
+        x_loc, y_loc = loc[0], loc[1]
+        x_dest, y_dest = dest[0], dest[1]
+
+        if abs(x_loc - x_dest) <= 1 and abs(y_loc - y_dest) <= 1:
+            if (board[y_dest][x_dest].islower() and self.color == "b") or (
+                    board[y_dest][x_dest].isupper() and self.color == "w"
+            ):
+                return False
+            if not checkingMoves: self.hasMoved = True
+            board[y_dest][x_dest] = "K" if self.color == "w" else "k"
+            board[y_loc][x_loc] = "-"
+            if not checkingMoves: LastMove = None
+            return board
+
+        elif abs(x_loc - x_dest) == 2 and y_loc - y_dest == 0:
+            if self.hasMoved:
+                return False
+            if self.PathIsClear(board, loc, dest):
+                if not self.rookMoved[0] and x_dest - x_loc == 2:
+                    if not checkingMoves: self.hasMoved = True
+                    board[y_dest][x_dest] = "K" if self.color == "w" else "k"
+                    board[y_loc][x_loc] = "-"
+                    board[y_dest][x_dest - 1] = "R" if self.color == "w" else "r"
+                    board[y_dest][x_dest + 1] = "-"
+                    if not checkingMoves: LastMove = None
+                    return board
+
+                elif not self.rookMoved[1] and x_loc - x_dest == 2:
+                    if not checkingMoves: self.hasMoved = True
+                    board[y_dest][x_dest] = "K" if self.color == "w" else "k"
+                    board[y_loc][x_loc] = "-"
+                    board[y_dest][x_dest - 2] = "-"
+                    board[y_dest][x_dest + 1] = "R" if self.color == "w" else "r"
+                    if not checkingMoves: LastMove = None
+                    return board
+
+        return False
+
+    def PathIsClear(self, board, loc, dest):
+        x_pos = loc[1]
+        x_loc, x_dest = loc[0], dest[0]
+
+        step = 1 if x_dest == 6 else -1
+
+        col = x_loc + step
+        for _ in range(3 if x_dest != 6 else 2):
+            if board[x_pos][col] != "-":
+                return False
+            col += step
+
+        if (board[x_pos][col] == "R" and self.color == "w") or (
+                board[x_pos][col] == "r" and self.color == "b"
+        ):
+            return True
+
+        return False
 
 
-# =========================
-# BOARD
-# =========================
-class Board:
-    def __init__(self):
-        self.grid = [[None for _ in range(8)] for _ in range(8)]
-        self.init_pieces()
-
-    def init_pieces(self):
-        # Pions
-        for i in range(8):
-            self.grid[6][i] = Pawn(Position(i, 6), 0)
-            self.grid[1][i] = Pawn(Position(i, 1), 1)
-
-        # Quelques pièces
-        self.grid[7][4] = King(Position(4, 7), 0)
-        self.grid[0][4] = King(Position(4, 0), 1)
-
-        self.grid[7][3] = Queen(Position(3, 7), 0)
-        self.grid[0][3] = Queen(Position(3, 0), 1)
-
-        self.grid[7][2] = Bishop(Position(2, 7), 0)
-        self.grid[0][2] = Bishop(Position(2, 0), 1)
-
-        self.grid[7][1] = Knight(Position(1, 7), 0)
-        self.grid[0][1] = Knight(Position(1, 0), 1)
-
-    def get_piece(self, pos):
-        return self.grid[pos.row][pos.col]
-
-    def move_piece(self, old_pos, new_pos):
-        piece = self.get_piece(old_pos)
-        self.grid[new_pos.row][new_pos.col] = piece
-        self.grid[old_pos.row][old_pos.col] = None
-        piece.position = new_pos
-
-
-# =========================
-# PLAYER
-# =========================
-class Player:
-    def __init__(self, name, color):
-        self.name = name
-        self.color = color
-
-
-# =========================
-# INTERFACE TKINTER
-# =========================
-class ChessGUI:
-    def __init__(self, root):
-        self.root = root
-        self.board = Board()
-        self.selected = None
-        self.turn = 0  # 0 blanc, 1 noir
-
-        # Pseudos
-        self.player1 = Player(simpledialog.askstring("Player", "Nom joueur blanc:"), 0)
-        self.player2 = Player(simpledialog.askstring("Player", "Nom joueur noir:"), 1)
-
-        self.canvas = tk.Canvas(root, width=480, height=480)
-        self.canvas.pack()
-
-        self.canvas.bind("<Button-1>", self.click)
-
-        self.draw_board()
-
-    def draw_board(self):
-        self.canvas.delete("all")
-        size = 60
-
-        for row in range(8):
-            for col in range(8):
-                color = "white" if (row + col) % 2 == 0 else "gray"
-                self.canvas.create_rectangle(col*size, row*size,
-                                             (col+1)*size, (row+1)*size,
-                                             fill=color)
-
-                piece = self.board.grid[row][col]
-                if piece:
-                    text = self.get_piece_symbol(piece)
-                    self.canvas.create_text(col*size+30, row*size+30,
-                                            text=text, font=("Arial", 20))
-
-    def get_piece_symbol(self, piece):
-        symbols = {
-            Pawn: "P",
-            Knight: "N",
-            Bishop: "B",
-            Queen: "Q",
-            King: "K"
-        }
-        s = symbols[type(piece)]
-        return s if piece.color == 0 else s.lower()
-
-    def click(self, event):
-        col = event.x // 60
-        row = event.y // 60
-        pos = Position(col, row)
-
-        if self.selected is None:
-            piece = self.board.get_piece(pos)
-            if piece and piece.color == self.turn:
-                self.selected = pos
-        else:
-            piece = self.board.get_piece(self.selected)
-
-            if piece and piece.is_valid_move(pos, self.board):
-                self.board.move_piece(self.selected, pos)
-                self.turn = 1 - self.turn  # switch joueur
-
-            self.selected = None
-
-        self.draw_board()
-
-
-# =========================
-# MAIN
-# =========================
-root = tk.Tk()
-root.title("Jeu d'échecs")
-app = ChessGUI(root)
-root.mainloop()
+if __name__ == "__main__":
+    print("Vous ne pouvez pas lancer ce fichier directement")
+    exit()
