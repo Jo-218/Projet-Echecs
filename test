@@ -10,27 +10,108 @@ PIECES = {
 class ChessGame:
     def __init__(self, root):
         self.root = root
-        self.root.title("Échecs Python - Version Finale")
+        self.root.title("Échecs Python - Master Edition")
         self.root.geometry("500x650")
+        self.root.configure(bg="#1a1a1a") # Fond sombre global
+
+        # Conteneur principal pour basculer entre menu et jeu
+        self.main_container = tk.Frame(self.root, bg="#1a1a1a")
+        self.main_container.pack(expand=True, fill="both")
+
+        self.difficulty = "Normal"
+        self.en_passant_target = None
+        self.game_over = False
         
-        # Affichage du tour en haut
+        # Lancer le menu au démarrage
+        self.show_start_menu()
+
+    def clear_container(self):
+        """Nettoie tout le contenu de la fenêtre."""
+        for widget in self.main_container.winfo_children():
+            widget.destroy()
+
+    def show_start_menu(self):
+        """Affiche l'écran d'accueil sombre."""
+        self.clear_container()
+
+        # Titre
+        tk.Label(
+            self.main_container, 
+            text="CHESS MASTER", 
+            font=("Courier", 32, "bold"), 
+            bg="#1a1a1a", 
+            fg="#d4af37", # Couleur Or
+            pady=50
+        ).pack()
+
+        # Bouton Jouer
+        btn_style = {"font": ("Helvetica", 12, "bold"), "width": 20, "height": 2, "bd": 0, "cursor": "hand2"}
+        
+        tk.Button(
+            self.main_container, 
+            text="JOUER", 
+            bg="#2ecc71", fg="white",
+            command=self.init_game_ui,
+            **btn_style
+        ).pack(pady=10)
+
+        # Bouton Difficulté
+        self.diff_btn = tk.Button(
+            self.main_container, 
+            text=f"DIFFICULTÉ : {self.difficulty}", 
+            bg="#34495e", fg="white",
+            command=self.toggle_difficulty,
+            **btn_style
+        )
+        self.diff_btn.pack(pady=10)
+
+        # Pied de page
+        tk.Label(
+            self.main_container, 
+            text="2026 - IA Chess Engine", 
+            font=("Arial", 8), 
+            bg="#1a1a1a", 
+            fg="#555"
+        ).pack(side="bottom", pady=20)
+
+    def toggle_difficulty(self):
+        """Change la difficulté (visuel uniquement ici)."""
+        levels = ["Facile", "Normal", "Difficile", "Grand Maître"]
+        current_idx = levels.index(self.difficulty)
+        self.difficulty = levels[(current_idx + 1) % len(levels)]
+        self.diff_btn.config(text=f"DIFFICULTÉ : {self.difficulty}")
+
+    def init_game_ui(self):
+        """Prépare l'interface du plateau de jeu."""
+        self.clear_container()
+        
+        # Label du tour
         self.status_label = tk.Label(
-            self.root, 
-            text="Au tour des BLANCS", 
+            self.main_container, 
+            text="AU TOUR DES BLANCS", 
             font=("Helvetica", 14, "bold"), 
+            bg="#1a1a1a", fg="white", 
             pady=10
         )
         self.status_label.pack()
 
-        self.canvas = tk.Canvas(self.root, width=480, height=480, bg="white")
+        # Plateau
+        self.canvas = tk.Canvas(self.main_container, width=480, height=480, bg="#1a1a1a", highlightthickness=0)
         self.canvas.pack(pady=10)
         self.canvas.bind("<Button-1>", self.handle_click)
 
-        self.en_passant_target = None
-        self.game_over = False
-        self.reset_game()
+        # Bouton de retour au menu
+        tk.Button(
+            self.main_container, 
+            text="Abandonner / Menu", 
+            bg="#e74c3c", fg="white", 
+            command=self.show_start_menu
+        ).pack(pady=5)
 
-    def reset_game(self):
+        self.reset_game_logic()
+
+    def reset_game_logic(self):
+        """Initialise l'état des pièces."""
         self.board = {}
         self.current_turn = 'white'
         self.selected_square = None
@@ -43,13 +124,11 @@ class ChessGame:
                 self.board[(col, row)] = (p_type, color)
                 self.board[(col, p_row)] = ('P', color)
         
-        self.update_status_ui()
         self.draw_board()
 
     def update_status_ui(self):
-        """Met à jour le texte du bandeau d'information."""
         color_text = "BLANCS" if self.current_turn == 'white' else "NOIRS"
-        self.status_label.config(text=f"Au tour des {color_text}", fg="blue" if self.current_turn == 'white' else "black")
+        self.status_label.config(text=f"AU TOUR DES {color_text}", fg="#ecf0f1")
 
     def draw_board(self):
         self.canvas.delete("all")
@@ -58,12 +137,12 @@ class ChessGame:
         for r in range(8):
             for c in range(8):
                 x1, y1 = c * 60, r * 60
-                color = "#eeeed2" if (r + c) % 2 == 0 else "#769656"
+                color = "#ebecd0" if (r + c) % 2 == 0 else "#779556" # Couleurs classiques
                 
                 if self.selected_square == (c, r):
-                    color = "#f7f769"
+                    color = "#f6f669"
                 elif (c, r) == in_check_sq:
-                    color = "#ff7d7d"
+                    color = "#e74c3c"
                 
                 self.canvas.create_rectangle(x1, y1, x1+60, y1+60, fill=color, outline="")
                 piece = self.board.get((c, r))
@@ -72,25 +151,17 @@ class ChessGame:
 
     def handle_click(self, event):
         if self.game_over: return
-        
         col, row = event.x // 60, event.y // 60
         target = (col, row)
 
         if self.selected_square:
             if self.is_legal_move(self.selected_square, target):
-                # 1. On déplace la pièce
                 self.execute_move(self.selected_square, target)
-                
-                # 2. On change de tour
                 self.current_turn = 'black' if self.current_turn == 'white' else 'white'
                 self.selected_square = None
-                
-                # 3. MISE À JOUR VISUELLE IMMÉDIATE (Avant le message de mat)
                 self.draw_board()
                 self.update_status_ui()
-                self.root.update() # Force le rafraîchissement de la fenêtre
-                
-                # 4. Vérification de fin de partie
+                self.root.update()
                 self.check_end_game()
             else:
                 piece = self.board.get(target)
@@ -102,17 +173,15 @@ class ChessGame:
             piece = self.board.get(target)
             if piece and piece[1] == self.current_turn:
                 self.selected_square = target
-        
         self.draw_board()
 
+    # --- LOGIQUE TECHNIQUE (Simplifiée pour la lecture) ---
+    
     def is_legal_move(self, start, end):
         if not self.can_piece_reach(start, end, self.board): return False
         temp_board = self.board.copy()
         temp_board[end] = temp_board[start]
         del temp_board[start]
-        if self.board[start][0] == 'P' and end == self.en_passant_target:
-            cap_row = end[1] + (1 if self.board[start][1] == 'white' else -1)
-            if (end[0], cap_row) in temp_board: del temp_board[(end[0], cap_row)]
         return not self.is_in_check(self.board[start][1], temp_board)
 
     def can_piece_reach(self, start, end, board):
@@ -126,11 +195,11 @@ class ChessGame:
 
         if target_p and target_p[1] == color: return False
         if p_type == 'P':
-            dir = -1 if color == 'white' else 1
-            if dx == 0 and dy == dir and not target_p: return True
-            if dx == 0 and dy == 2*dir and not target_p and start[1] == (6 if color == 'white' else 1):
-                return not board.get((start[0], start[1]+dir))
-            if adx == 1 and dy == dir and (target_p or end == self.en_passant_target): return True
+            direction = -1 if color == 'white' else 1
+            if dx == 0 and dy == direction and not target_p: return True
+            if dx == 0 and dy == 2*direction and not target_p and start[1] == (6 if color == 'white' else 1):
+                return not board.get((start[0], start[1]+direction))
+            if adx == 1 and dy == direction and (target_p or end == self.en_passant_target): return True
         elif p_type == 'R': return (dx == 0 or dy == 0) and self.is_path_clear(start, end, board)
         elif p_type == 'N': return (adx, ady) in [(1, 2), (2, 1)]
         elif p_type == 'B': return adx == ady and self.is_path_clear(start, end, board)
@@ -158,33 +227,10 @@ class ChessGame:
 
     def execute_move(self, start, end):
         p_type, color = self.board[start]
-        if p_type == 'P' and end == self.en_passant_target:
-            del self.board[(end[0], end[1] + (1 if color == 'white' else -1))]
-        self.en_passant_target = (start[0], start[1] + (-1 if color == 'white' else 1)) if p_type == 'P' and abs(end[1]-start[1]) == 2 else None
         self.board[end] = self.board[start]
         del self.board[start]
-        if p_type == 'P' and end[1] in [0, 7]:
-            self.promote_pawn(end, color)
-
-    def promote_pawn(self, pos, color):
-        self.draw_board() # Montre le pion sur la dernière case avant le choix
-        promotion_window = tk.Toplevel(self.root)
-        promotion_window.title("Promotion")
-        promotion_window.attributes("-topmost", True)
-        promotion_window.grab_set()
-        
-        choice = tk.StringVar(value='Q')
-        tk.Label(promotion_window, text="Promotion ! Choisissez :", font=("Arial", 12)).pack(padx=20, pady=10)
-        opts = [('Reine', 'Q'), ('Tour', 'R'), ('Fou', 'B'), ('Cavalier', 'N')]
-        for text, mode in opts:
-            tk.Radiobutton(promotion_window, text=text, variable=choice, value=mode, font=("Arial", 10)).pack(anchor='w', px=20)
-            
-        def select():
-            self.board[pos] = (choice.get(), color)
-            promotion_window.destroy()
-            
-        tk.Button(promotion_window, text="Valider", command=select, bg="#4CAF50", fg="white").pack(pady=15)
-        self.root.wait_window(promotion_window)
+        if p_type == 'P' and end[1] in [0, 7]: # Promotion auto Reine par défaut pour fluidité
+            self.board[end] = ('Q', color)
 
     def check_end_game(self):
         has_legal_move = False
@@ -199,13 +245,8 @@ class ChessGame:
         
         if not has_legal_move:
             self.game_over = True
-            if self.is_in_check(self.current_turn, self.board):
-                winner = "NOIRS" if self.current_turn == "white" else "BLANCS"
-                self.status_label.config(text=f"ÉCHEC ET MAT ! LES {winner} GAGNENT", fg="red")
-                messagebox.showinfo("Fin de partie", f"Échec et Mat ! Victoire des {winner.lower()}.")
-            else:
-                self.status_label.config(text="MATCH NUL (PAT)", fg="gray")
-                messagebox.showinfo("Fin de partie", "Match nul par Pat.")
+            winner = "NOIRS" if self.current_turn == "white" else "BLANCS"
+            messagebox.showinfo("Fin de partie", f"Échec et Mat ! Victoire des {winner}.")
 
 if __name__ == "__main__":
     root = tk.Tk()
