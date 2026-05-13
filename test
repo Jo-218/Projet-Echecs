@@ -1,80 +1,25 @@
-import unittest
-from main import Position, Board, Pawn, Knight, Bishop, Queen, King  # adapte "main" si besoin
+import tkinter as tk
+from tkinter import messagebox
 
+def saluer():
+    messagebox.showinfo("Message", "Bonjour ! Bienvenue dans votre application Tkinter.")
 
-class TestChess(unittest.TestCase):
+# 1. Création de l'instance principale (la fenêtre)
+root = tk.Tk()
 
-    def setUp(self):
-        self.board = Board()
+# 2. Configuration de la fenêtre
+root.title("Mon Application")
+root.geometry("400x300")  # Largeur x Hauteur en pixels
 
-    # 🔹 Test Position
-    def test_position_str(self):
-        pos = Position(4, 7)  # e1
-        self.assertEqual(str(pos), "e1")
+# 3. Ajout de composants (widgets)
+label = tk.Label(root, text="Ceci est une fenêtre Tkinter", font=("Arial", 14))
+label.pack(pady=20)  # "pack" place le widget et "pady" ajoute de l'espace vertical
 
-    # 🔹 Test présence des pièces initiales
-    def test_initial_pawn(self):
-        pawn = self.board.get_piece(Position(0, 6))
-        self.assertIsInstance(pawn, Pawn)
-        self.assertEqual(pawn.color, 0)
+bouton_salut = tk.Button(root, text="Cliquez-moi", command=saluer)
+bouton_salut.pack(pady=10)
 
-    def test_initial_king(self):
-        king = self.board.get_piece(Position(4, 7))
-        self.assertIsInstance(king, King)
-        self.assertEqual(king.color, 0)
+bouton_quitter = tk.Button(root, text="Quitter", command=root.quit, fg="red")
+bouton_quitter.pack(pady=10)
 
-    # 🔹 Test déplacement du pion
-    def test_pawn_move(self):
-        pawn = self.board.get_piece(Position(0, 6))
-        new_pos = Position(0, 5)
-
-        self.assertTrue(pawn.is_valid_move(new_pos, self.board))
-
-    # 🔹 Test mouvement invalide pion
-    def test_pawn_invalid_move(self):
-        pawn = self.board.get_piece(Position(0, 6))
-        new_pos = Position(1, 5)  # diagonale (non gérée ici)
-
-        self.assertFalse(pawn.is_valid_move(new_pos, self.board))
-
-    # 🔹 Test cavalier
-    def test_knight_move(self):
-        knight = self.board.get_piece(Position(1, 7))
-        new_pos = Position(2, 5)
-
-        self.assertTrue(knight.is_valid_move(new_pos, self.board))
-
-    # 🔹 Test fou
-    def test_bishop_move(self):
-        bishop = self.board.get_piece(Position(2, 7))
-        new_pos = Position(5, 4)
-
-        self.assertTrue(bishop.is_valid_move(new_pos, self.board))
-
-    # 🔹 Test reine
-    def test_queen_move(self):
-        queen = self.board.get_piece(Position(3, 7))
-        new_pos = Position(3, 5)
-
-        self.assertTrue(queen.is_valid_move(new_pos, self.board))
-
-    # 🔹 Test roi
-    def test_king_move(self):
-        king = self.board.get_piece(Position(4, 7))
-        new_pos = Position(4, 6)
-
-        self.assertTrue(king.is_valid_move(new_pos, self.board))
-
-    # 🔹 Test déplacement réel sur le plateau
-    def test_move_piece(self):
-        start = Position(0, 6)
-        end = Position(0, 5)
-
-        self.board.move_piece(start, end)
-
-        self.assertIsNone(self.board.get_piece(start))
-        self.assertIsNotNone(self.board.get_piece(end))
-
-
-if __name__ == "__main__":
-    unittest.main()
+# 4. Lancement de la boucle principale (maintient la fenêtre ouverte)
+root.mainloop()
