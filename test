@@ -9,20 +9,22 @@ PIECES = {
 class ChessGame:
     def __init__(self, root):
         self.root = root
-        self.root.title("Échecs Pro - Python")
+        self.root.title("Échecs Expert - Python")
         self.root.geometry("500x600")
         
         self.canvas = tk.Canvas(self.root, width=480, height=480)
         self.canvas.pack(pady=20)
         self.canvas.bind("<Button-1>", self.handle_click)
 
-        self.en_passant_target = None  # Stocke la case possible pour une prise en passant
+        self.en_passant_target = None
+        self.game_over = False
         self.reset_game()
 
     def reset_game(self):
         self.board = {}
         self.current_turn = 'white'
         self.selected_square = None
+        self.game_over = False
         
         for color in ['white', 'black']:
             row, p_row = (7, 6) if color == 'white' else (0, 1)
@@ -40,14 +42,12 @@ class ChessGame:
         for r in range(8):
             for c in range(8):
                 x1, y1 = c * 60, r * 60
-                # Couleurs de base
                 color = "#eeeed2" if (r + c) % 2 == 0 else "#769656"
                 
-                # Surlignage (Sélection ou Échec)
                 if self.selected_square == (c, r):
                     color = "#f7f769"
                 elif (c, r) == in_check_sq:
-                    color = "#ff7d7d" # Rouge si le roi est en échec
+                    color = "#ff7d7d"
                 
                 self.canvas.create_rectangle(x1, y1, x1+60, y1+60, fill=color, outline="")
                 piece = self.board.get((c, r))
@@ -55,6 +55,8 @@ class ChessGame:
                     self.canvas.create_text(x1+30, y1+30, text=PIECES[piece[1]][piece[0]], font=("Arial", 36))
 
     def handle_click(self, event):
+        if self.game_over: return
+        
         col, row = event.x // 60, event.y // 60
         target = (col, row)
 
@@ -63,6 +65,7 @@ class ChessGame:
                 self.execute_move(self.selected_square, target)
                 self.current_turn = 'black' if self.current_turn == 'white' else 'white'
                 self.selected_square = None
+                self.check_end_game() # Vérifier si Mat après le changement de tour
             else:
                 piece = self.board.get(target)
                 if piece and piece[1] == self.current_turn:
@@ -77,16 +80,13 @@ class ChessGame:
         self.draw_board()
 
     def is_legal_move(self, start, end):
-        """Vérifie si le coup est possible ET s'il ne laisse pas le roi en échec (clouage)."""
         if not self.can_piece_reach(start, end, self.board):
             return False
         
-        # Simulation pour vérifier l'échec (Gestion des clouages)
         temp_board = self.board.copy()
         temp_board[end] = temp_board[start]
         del temp_board[start]
         
-        # Cas spécial En Passant : supprimer le pion capturé derrière
         if self.board[start][0] == 'P' and end == self.en_passant_target:
             cap_row = end[1] + (1 if self.board[start][1] == 'white' else -1)
             if (end[0], cap_row) in temp_board: del temp_board[(end[0], cap_row)]
@@ -94,8 +94,11 @@ class ChessGame:
         return not self.is_in_check(self.board[start][1], temp_board)
 
     def can_piece_reach(self, start, end, board):
-        """Logique de mouvement pure de la pièce."""
-        p_type, color = board[start]
+        if not (0 <= end[0] < 8 and 0 <= end[1] < 8): return False
+        piece_info = board.get(start)
+        if not piece_info: return False
+        
+        p_type, color = piece_info
         dx, dy = end[0] - start[0], end[1] - start[1]
         adx, ady = abs(dx), abs(dy)
         target_p = board.get(end)
@@ -104,15 +107,10 @@ class ChessGame:
 
         if p_type == 'P':
             dir = -1 if color == 'white' else 1
-            # Avance
             if dx == 0 and dy == dir and not target_p: return True
-            # Double avance
             if dx == 0 and dy == 2*dir and not target_p and start[1] == (6 if color == 'white' else 1):
                 return not board.get((start[0], start[1]+dir))
-            # Capture classique
-            if adx == 1 and dy == dir and target_p: return True
-            # EN PASSANT
-            if adx == 1 and dy == dir and end == self.en_passant_target: return True
+            if adx == 1 and dy == dir and (target_p or end == self.en_passant_target): return True
             return False
 
         if p_type == 'R': return (dx == 0 or dy == 0) and self.is_path_clear(start, end, board)
@@ -132,43 +130,69 @@ class ChessGame:
         return True
 
     def is_in_check(self, color, board):
-        """Vérifie si le roi de la couleur donnée est attaqué."""
-        king_pos = None
-        for pos, piece in board.items():
-            if piece == ('K', color):
-                king_pos = pos
-                break
+        king_pos = next((pos for pos, p in board.items() if p == ('K', color)), None)
         if not king_pos: return False
-        
         opp_color = 'black' if color == 'white' else 'white'
-        for pos, piece in board.items():
-            if piece[1] == opp_color:
-                if self.can_piece_reach(pos, king_pos, board):
-                    return True
-        return False
+        return any(self.can_piece_reach(pos, king_pos, board) for pos, p in board.items() if p[1] == opp_color)
 
     def get_king_square(self, color):
-        for pos, piece in self.board.items():
-            if piece == ('K', color): return pos
+        return next((pos for pos, p in self.board.items() if p == ('K', color)), None)
 
     def execute_move(self, start, end):
         p_type, color = self.board[start]
         
-        # Gestion En Passant (Suppression du pion capturé)
         if p_type == 'P' and end == self.en_passant_target:
-            cap_row = end[1] + (1 if color == 'white' else -1)
-            del self.board[(end[0], cap_row)]
+            del self.board[(end[0], end[1] + (1 if color == 'white' else -1))]
 
-        # Mise à jour du prochain En Passant possible
         self.en_passant_target = (start[0], start[1] + (-1 if color == 'white' else 1)) if p_type == 'P' and abs(end[1]-start[1]) == 2 else None
 
-        # Déplacement
         self.board[end] = self.board[start]
         del self.board[start]
 
-        # PROMOTION
         if p_type == 'P' and end[1] in [0, 7]:
-            self.board[end] = ('Q', color) # Promotion automatique en Reine pour simplifier
+            self.promote_pawn(end, color)
+
+    def promote_pawn(self, pos, color):
+        """Ouvre une petite fenêtre pour choisir la pièce de promotion."""
+        promotion_window = tk.Toplevel(self.root)
+        promotion_window.title("Promotion")
+        promotion_window.grab_set() # Rend la fenêtre modale
+        
+        choice = tk.StringVar(value='Q')
+        tk.Label(promotion_window, text="Choisissez votre pièce :").pack(padx=10, pady=10)
+        
+        options = [('Reine', 'Q'), ('Tour', 'R'), ('Fou', 'B'), ('Cavalier', 'N')]
+        for text, mode in options:
+            tk.Radiobutton(promotion_window, text=text, variable=choice, value=mode).pack(anchor='w')
+            
+        def select():
+            self.board[pos] = (choice.get(), color)
+            self.draw_board()
+            promotion_window.destroy()
+            
+        tk.Button(promotion_window, text="Confirmer", command=select).pack(pady=10)
+        self.root.wait_window(promotion_window)
+
+    def check_end_game(self):
+        """Vérifie s'il existe au moins un coup légal pour le joueur actuel."""
+        has_legal_move = False
+        for pos, piece in self.board.items():
+            if piece[1] == self.current_turn:
+                for r in range(8):
+                    for c in range(8):
+                        if self.is_legal_move(pos, (c, r)):
+                            has_legal_move = True
+                            break
+                    if has_legal_move: break
+            if has_legal_move: break
+        
+        if not has_legal_move:
+            self.game_over = True
+            if self.is_in_check(self.current_turn, self.board):
+                winner = "Noirs" if self.current_turn == "white" else "Blancs"
+                messagebox.showinfo("Échec et Mat !", f"Le Roi est mat. Les {winner} gagnent !")
+            else:
+                messagebox.showinfo("Pat", "Match nul par Pat (Stalemate).")
 
 if __name__ == "__main__":
     root = tk.Tk()
