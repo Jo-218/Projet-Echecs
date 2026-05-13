@@ -1,213 +1,155 @@
 import tkinter as tk
 from tkinter import messagebox
 
-# Caractères Unicode pour les pièces d'échecs
-UNICODE_PIECES = {
-    'R_white': '♖', 'N_white': '♘', 'B_white': '♗', 'Q_white': '♕', 'K_white': '♔', 'P_white': '♙',
-    'R_black': '♜', 'N_black': '♞', 'B_black': '♝', 'Q_black': '♛', 'K_black': '♚', 'P_black': '♟'
+# Caractères Unicode pour les pièces
+PIECES = {
+    'white': {'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'},
+    'black': {'P': '♟', 'R': '♜', 'N': '♞', 'B': '♝', 'Q': '♛', 'K': '♚'}
 }
-
-# Mapping de la position initiale des pièces
-INITIAL_BOARD = {
-    'a1': 'R_white', 'b1': 'N_white', 'c1': 'B_white', 'd1': 'Q_white', 'e1': 'K_white', 'f1': 'B_white', 'g1': 'N_white', 'h1': 'R_white',
-    'a2': 'P_white', 'b2': 'P_white', 'c2': 'P_white', 'd2': 'P_white', 'e2': 'P_white', 'f2': 'P_white', 'g2': 'P_white', 'h2': 'P_white',
-    'a7': 'P_black', 'b7': 'P_black', 'c7': 'P_black', 'd7': 'P_black', 'e7': 'P_black', 'f7': 'P_black', 'g7': 'P_black', 'h7': 'P_black',
-    'a8': 'R_black', 'b8': 'N_black', 'c8': 'B_black', 'd8': 'Q_black', 'e8': 'K_black', 'f8': 'B_black', 'g8': 'N_black', 'h8': 'R_black',
-}
-
-def file_rank_to_index(fr):
-    """Convertit la notation d'échecs (a1, e4) en index de grille (col, lig)."""
-    file = ord(fr[0]) - ord('a')
-    rank = int(fr[1:]) - 1
-    return (file, 7 - rank) # l'index 0,0 est en haut à gauche (8e rangée)
-
-def index_to_file_rank(col, row):
-    """Convertit les index de grille (col, lig) en notation d'échecs (a1, e4)."""
-    file = chr(ord('a') + col)
-    rank = 7 - row + 1
-    return file + str(rank)
-
-def get_piece_color(piece_str):
-    if not piece_str:
-        return None
-    return 'white' if '_white' in piece_str else 'black'
 
 class ChessGame:
     def __init__(self, root):
         self.root = root
-        self.root.title("Mon Jeu d'Échecs")
-        self.root.geometry("600x700")
+        self.root.title("Échecs Python")
+        self.root.geometry("500x600")
         
-        # Couleurs du plateau
-        self.color_light = "#eeeed2"
-        self.color_dark = "#769656"
-        
-        # Conteneur principal
-        self.main_frame = tk.Frame(self.root)
-        self.main_frame.pack(expand=True, fill="both")
+        self.canvas = tk.Canvas(self.root, width=480, height=480)
+        self.canvas.pack(pady=20)
+        self.canvas.bind("<Button-1>", self.handle_click)
 
-        # Initialisation de l'état du jeu
-        self.board = INITIAL_BOARD.copy()
+        self.reset_game()
+
+    def reset_game(self):
+        """Initialise l'état du plateau et des variables."""
+        self.board = {} # Dictionnaire {(col, row): (type, color)}
         self.current_turn = 'white'
-        self.selected_square = None # La case sur laquelle l'utilisateur a cliqué pour sélectionner une pièce
+        self.selected_square = None
         
-        self.show_menu()
+        # Placement des pièces
+        for color in ['white', 'black']:
+            row = 7 if color == 'white' else 0
+            pawn_row = 6 if color == 'white' else 1
+            
+            # Pièces lourdes
+            order = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
+            for col, p_type in enumerate(order):
+                self.board[(col, row)] = (p_type, color)
+                self.board[(col, pawn_row)] = ('P', color)
+        
+        self.draw_board()
 
-    def show_menu(self):
-        """Affiche l'écran d'accueil avec le bouton Jouer."""
-        self.clear_frame()
-        
-        self.label_title = tk.Label(
-            self.main_frame, 
-            text="Jeu d'Échecs", 
-            font=("Helvetica", 32, "bold"),
-            pady=50
-        )
-        self.label_title.pack()
+    def draw_board(self):
+        self.canvas.delete("all")
+        for r in range(8):
+            for c in range(8):
+                x1, y1 = c * 60, r * 60
+                color = "#eeeed2" if (r + c) % 2 == 0 else "#769656"
+                
+                # Mise en surbrillance si sélectionné
+                if self.selected_square == (c, r):
+                    color = "#f7f769"
+                
+                self.canvas.create_rectangle(x1, y1, x1+60, y1+60, fill=color, outline="")
+                
+                # Affichage de la pièce
+                piece = self.board.get((c, r))
+                if piece:
+                    p_type, p_color = piece
+                    self.canvas.create_text(x1+30, y1+30, text=PIECES[p_color][p_type], font=("Arial", 36))
 
-        self.btn_play = tk.Button(
-            self.main_frame, 
-            text="Jouer", 
-            font=("Helvetica", 18),
-            command=self.start_game,
-            width=15,
-            height=2,
-            bg="#4CAF50",
-            fg="white"
-        )
-        self.btn_play.pack(pady=20)
+    def handle_click(self, event):
+        col, row = event.x // 60, event.y // 60
+        target = (col, row)
 
-    def start_game(self):
-        """Initialise le plateau de jeu."""
-        self.clear_frame()
-        
-        # Création du canvas pour le plateau (8x8 cases)
-        self.canvas = tk.Canvas(self.main_frame, width=480, height=480)
-        self.canvas.pack(pady=40)
-        self.canvas.bind("<Button-1>", self.on_click) # Gérer les clics de souris
-        
-        self.draw_board_and_pieces()
-        
-        # Bouton retour
-        self.btn_back = tk.Button(self.main_frame, text="Retour au menu", command=self.show_menu)
-        self.btn_back.pack()
-
-    def draw_board_and_pieces(self):
-        """Dessine les 64 cases du plateau et les pièces dessus."""
-        self.canvas.delete("all") # Nettoyer le canvas avant de redessiner
-        square_size = 60
-        piece_font = ("Helvetica", 32)
-        
-        for row in range(8):
-            for col in range(8):
-                # Dessiner la case
-                color = self.color_light if (row + col) % 2 == 0 else self.color_dark
-                x1 = col * square_size
-                y1 = row * square_size
-                x2 = x1 + square_size
-                y2 = y1 + square_size
-                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
-
-                # Dessiner la pièce si elle est présente
-                square_fr = index_to_file_rank(col, row)
-                piece_str = self.board.get(square_fr)
-                if piece_str:
-                    unicode_char = UNICODE_PIECES.get(piece_str, "")
-                    if unicode_char:
-                        self.canvas.create_text(
-                            x1 + square_size // 2, 
-                            y1 + square_size // 2, 
-                            text=unicode_char, 
-                            font=piece_font, 
-                            anchor="center"
-                        )
-                        
-        # Mettre en évidence la case sélectionnée (si il y en a une)
         if self.selected_square:
-            col, row = file_rank_to_index(self.selected_square)
-            x1 = col * square_size
-            y1 = row * square_size
-            x2 = x1 + square_size
-            y2 = y1 + square_size
-            self.canvas.create_rectangle(x1, y1, x2, y2, outline="yellow", width=3)
-            # Mettre en évidence les coups possibles (plus tard)
-
-    def on_click(self, event):
-        """Gère le clic de souris sur le plateau."""
-        square_size = 60
-        col = event.x // square_size
-        row = event.y // square_size
-        clicked_square = index_to_file_rank(col, row)
-        piece_on_clicked_square = self.board.get(clicked_square)
-        piece_on_clicked_square_color = get_piece_color(piece_on_clicked_square)
-        
-        # Première selection
-        if self.selected_square is None: 
-            if piece_on_clicked_square and piece_on_clicked_square_color == self.current_turn:
-                self.selected_square = clicked_square
-                self.draw_board_and_pieces() # Mettre en évidence la case sélectionnée
-            else:
-                # Clic sur une case vide ou sur une pièce de l'adversaire (invalide)
-                pass 
-        
-        # Deuxième clic : déplacement ou nouvelle sélection
-        else:
-            if clicked_square == self.selected_square:
-                # Clic sur la même case -> désélectionner
+            if self.is_valid_move(self.selected_square, target):
+                # Exécuter le mouvement
+                self.board[target] = self.board[self.selected_square]
+                del self.board[self.selected_square]
+                
+                # Changement de tour
+                self.current_turn = 'black' if self.current_turn == 'white' else 'white'
                 self.selected_square = None
-            elif piece_on_clicked_square and piece_on_clicked_square_color == self.current_turn:
-                # Clic sur une autre de ses pièces -> sélectionner cette pièce à la place
-                self.selected_square = clicked_square
             else:
-                # Clic sur une case vide ou sur une pièce de l'adversaire -> essayer de déplacer
-                start_square = self.selected_square
-                end_square = clicked_square
-                if self.is_valid_move(start_square, end_square):
-                    # Faire le mouvement
-                    self.board[end_square] = self.board[start_square]
-                    del self.board[start_square]
-                    # Changer de tour
-                    self.current_turn = 'black' if self.current_turn == 'white' else 'white'
-                    self.selected_square = None # Désélectionner après le mouvement
+                # Changer de sélection si on clique sur une autre de ses propres pièces
+                piece = self.board.get(target)
+                if piece and piece[1] == self.current_turn:
+                    self.selected_square = target
                 else:
-                    # Mouvement invalide -> rien faire (l'utilisateur peut essayer un autre coup ou désélectionner)
-                    pass
-            self.draw_board_and_pieces() # Redessiner le plateau pour mettre à jour l'état
+                    self.selected_square = None
+        else:
+            piece = self.board.get(target)
+            if piece and piece[1] == self.current_turn:
+                self.selected_square = target
+        
+        self.draw_board()
 
     def is_valid_move(self, start, end):
-        """Vérifie si le mouvement d'une pièce est valide d'après les règles de base."""
-        # Pour une implémentation complète, il faudrait un code très complexe pour chaque pièce, 
-        # incluant les captures diagonales des pions, la prise en passant, le roque, etc.
-        # Ici, nous allons faire une version très simplifiée : 
-        # permettre tout mouvement vers une case vide ou occupée par l'adversaire, 
-        # sauf pour les pions qui ne peuvent pas reculer et avancent de 1 case.
+        if start == end: return False
         
-        piece_str = self.board[start]
-        start_col, start_row = file_rank_to_index(start)
-        end_col, end_row = file_rank_to_index(end)
-        end_piece_str = self.board.get(end)
+        piece_type, color = self.board[start]
+        target_piece = self.board.get(end)
         
-        # Les pions ne peuvent pas se déplacer à travers une autre pièce, 
-        # et leurs mouvements sont très spécifiques
-        if '_P_' in piece_str or '_white' in piece_str and piece_str.startswith('P'):
-             if get_piece_color(piece_str) == 'white':
-                # Uniquement vers le haut (rank augmente)
-                return start_col == end_col and end_row < start_row and abs(end_row - start_row) == 1 and not end_piece_str
-             else: # noir
-                # Uniquement vers le bas (rank diminue)
-                return start_col == end_col and end_row > start_row and abs(end_row - start_row) == 1 and not end_piece_str
-        
-        # Pour toutes les autres pièces, pour l'instant, on n'autorise aucun mouvement 
-        # sauf si on clique sur une case de l'adversaire (ce qui est une capture)
-        # return True if not end_piece_str or get_piece_color(end_piece_str) != self.current_turn else False
-        return False # Pour l'instant on désactive tout mouvement sauf les pions pour montrer que la logique de sélection/désélection fonctionne
+        # On ne peut pas manger sa propre pièce
+        if target_piece and target_piece[1] == color:
+            return False
 
-    def clear_frame(self):
-        """Nettoie le contenu actuel de la fenêtre."""
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        dx = end[0] - start[0]
+        dy = end[1] - start[1]
+        adx, ady = abs(dx), abs(dy)
 
-# Lancement de l'application
+        # LOGIQUE PAR PIÈCE
+        if piece_type == 'P': # PION
+            direction = -1 if color == 'white' else 1
+            # Avancer de 1
+            if dx == 0 and dy == direction and not target_piece:
+                return True
+            # Premier mouvement (de 2)
+            if dx == 0 and dy == 2*direction and not target_piece:
+                start_row = 6 if color == 'white' else 1
+                if start[1] == start_row and not self.board.get((start[0], start[1]+direction)):
+                    return True
+            # Capture diagonale
+            if adx == 1 and dy == direction and target_piece:
+                return True
+            return False
+
+        if piece_type == 'R': # TOUR
+            if dx == 0 or dy == 0:
+                return self.is_path_clear(start, end)
+            return False
+
+        if piece_type == 'N': # CAVALIER
+            return (adx, ady) in [(1, 2), (2, 1)]
+
+        if piece_type == 'B': # FOU
+            if adx == ady:
+                return self.is_path_clear(start, end)
+            return False
+
+        if piece_type == 'Q': # REINE
+            if dx == 0 or dy == 0 or adx == ady:
+                return self.is_path_clear(start, end)
+            return False
+
+        if piece_type == 'K': # ROI
+            return adx <= 1 and ady <= 1
+
+        return False
+
+    def is_path_clear(self, start, end):
+        """Vérifie s'il y a des obstacles entre deux cases (hors Cavalier)."""
+        step_x = 0 if end[0] == start[0] else (1 if end[0] > start[0] else -1)
+        step_y = 0 if end[1] == start[1] else (1 if end[1] > start[1] else -1)
+        
+        curr_x, curr_y = start[0] + step_x, start[1] + step_y
+        while (curr_x, curr_y) != end:
+            if (curr_x, curr_y) in self.board:
+                return False
+            curr_x += step_x
+            curr_y += step_y
+        return True
+
 if __name__ == "__main__":
     root = tk.Tk()
     game = ChessGame(root)
