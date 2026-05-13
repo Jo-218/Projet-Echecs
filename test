@@ -1,25 +1,82 @@
 import tkinter as tk
 from tkinter import messagebox
 
-def saluer():
-    messagebox.showinfo("Message", "Bonjour ! Bienvenue dans votre application Tkinter.")
+class ChessGame:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Mon Jeu d'Échecs")
+        self.root.geometry("600x700")
+        
+        # Couleurs du plateau
+        self.color_light = "#eeeed2"
+        self.color_dark = "#769656"
+        
+        # Conteneur principal
+        self.main_frame = tk.Frame(self.root)
+        self.main_frame.pack(expand=True, fill="both")
+        
+        self.show_menu()
 
-# 1. Création de l'instance principale (la fenêtre)
-root = tk.Tk()
+    def show_menu(self):
+        """Affiche l'écran d'accueil avec le bouton Jouer."""
+        self.clear_frame()
+        
+        self.label_title = tk.Label(
+            self.main_frame, 
+            text="Jeu d'Échecs", 
+            font=("Helvetica", 32, "bold"),
+            pady=50
+        )
+        self.label_title.pack()
 
-# 2. Configuration de la fenêtre
-root.title("Mon Application")
-root.geometry("400x300")  # Largeur x Hauteur en pixels
+        self.btn_play = tk.Button(
+            self.main_frame, 
+            text="Jouer", 
+            font=("Helvetica", 18),
+            command=self.start_game,
+            width=15,
+            height=2,
+            bg="#4CAF50",
+            fg="white"
+        )
+        self.btn_play.pack(pady=20)
 
-# 3. Ajout de composants (widgets)
-label = tk.Label(root, text="Ceci est une fenêtre Tkinter", font=("Arial", 14))
-label.pack(pady=20)  # "pack" place le widget et "pady" ajoute de l'espace vertical
+    def start_game(self):
+        """Initialise le plateau de jeu."""
+        self.clear_frame()
+        
+        # Création du canvas pour le plateau (8x8 cases)
+        self.canvas = tk.Canvas(self.main_frame, width=480, height=480)
+        self.canvas.pack(pady=40)
+        
+        self.draw_board()
+        
+        # Bouton retour
+        self.btn_back = tk.Button(self.main_frame, text="Retour au menu", command=self.show_menu)
+        self.btn_back.pack()
 
-bouton_salut = tk.Button(root, text="Cliquez-moi", command=saluer)
-bouton_salut.pack(pady=10)
+    def draw_board(self):
+        """Dessine les 64 cases du plateau."""
+        square_size = 60
+        for row in range(8):
+            for col in range(8):
+                # Alterne les couleurs selon la ligne et la colonne
+                color = self.color_light if (row + col) % 2 == 0 else self.color_dark
+                
+                x1 = col * square_size
+                y1 = row * square_size
+                x2 = x1 + square_size
+                y2 = y1 + square_size
+                
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
 
-bouton_quitter = tk.Button(root, text="Quitter", command=root.quit, fg="red")
-bouton_quitter.pack(pady=10)
+    def clear_frame(self):
+        """Nettoie le contenu actuel de la fenêtre."""
+        for widget in self.main_frame.winfo_children():
+            widget.destroy()
 
-# 4. Lancement de la boucle principale (maintient la fenêtre ouverte)
-root.mainloop()
+# Lancement de l'application
+if __name__ == "__main__":
+    root = tk.Tk()
+    game = ChessGame(root)
+    root.mainloop()
