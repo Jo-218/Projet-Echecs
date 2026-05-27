@@ -811,7 +811,7 @@ class ChessGUI:
     def draw_board(self):
 
         self.canvas.delete("all")
-
+        game_result = self.chess.check_game_over()
         light = '#EEEED2'
         dark = '#769656'
 
@@ -902,6 +902,7 @@ class ChessGUI:
                             fill='#00FF88',
                             outline=''
                             )
+        if game_result: self.update_status()
 
     # =====================================================
     # CLICK
@@ -1003,25 +1004,63 @@ class ChessGUI:
 
         if self.chess.is_check(self.chess.current):
             text += ' - ÉCHEC'
+            self.status.config(text=text, fg="#FF9800")
+        else:
+            self.status.config(text=text, fg="#00FF88")
 
-        self.status.config(text=text)
-
+        # Analyse de fin de partie
         game_result = self.chess.check_game_over()
         
         if game_result:
+            # 1. Détermination du message et des couleurs selon le résultat
             if game_result == 'checkmate':
                 winner = self.black_name.get() if self.chess.current == 0 else self.white_name.get()
-                msg = f"Échec et mat"
-            elif game_result == 'stalemate_no_moves':
-                msg = f"Match nul"
-            elif game_result == 'stalemate_material':
-                msg = "Match nul"
-            elif game_result == 'stalemate_repetition':
-                msg = "Match nul"
+                title_text = "ÉCHEC ET MAT"
+                sub_text = f"Victoire de {winner} !"
+                bg_color = "#4a0d0d" # Rouge sombre pro
+                text_color = "#FF3333"
+            else:
+                title_text = "MATCH NUL (PAT)"
+                text_color = "#2196F3" # Bleu moderne
+                bg_color = "#122338"  # Bleu-noir sombre
+                
+                if game_result == 'stalemate_no_moves':
+                    sub_text = f"{player} n'a plus de coup légal."
+                elif game_result == 'stalemate_material':
+                    sub_text = "Manque de pièces pour mater."
+                elif game_result == 'stalemate_repetition':
+                    sub_text = "Position répétée 3 fois."
 
-            self.status.config(text=msg, fg="#FF3333")
-            messagebox.showinfo("Fin de partie", msg)
-            self.selected = None # Réinitialise la sélection
+            # 2. Mise à jour du bandeau de texte du bas
+            self.status.config(text=f"FIN DE PARTIE : {title_text}", fg=text_color)
+
+            # 3. Dessin d'un overlay moderne directement sur l'échiquier
+            # Fond semi-transparent (Rectangle)
+            self.canvas.create_rectangle(
+                40, 200, 536, 376, 
+                fill=bg_color, 
+                outline=text_color, 
+                width=3
+            )
+            
+            # Texte principal (Titre)
+            self.canvas.create_text(
+                288, 255, 
+                text=title_text, 
+                font=("Segoe UI", 26, "bold"), 
+                fill=text_color
+            )
+            
+            # Texte secondaire (Description)
+            self.canvas.create_text(
+                288, 315, 
+                text=sub_text, 
+                font=("Segoe UI", 14), 
+                fill="#ffffff"
+            )
+            
+            # Désélectionne la pièce pour effacer les points verts
+            self.selected = None
 
     def on_click(self, event):
         if self.chess.check_game_over() is not None:
