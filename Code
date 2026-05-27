@@ -458,6 +458,7 @@ class Chess:
         self.board = Board()
         self.board.chess = self
         self.current = 0
+        self.clocks = [600.0, 600.0]
         self.last_move = None
         
         self.position_history = []
@@ -521,7 +522,8 @@ class Chess:
             return 'stalemate_material'
         if self.is_threefold_repetition():
             return 'stalemate_repetition'
-
+        if self.clocks[0] <= 0: return 'timeout_white'
+        if self.clocks[1] <= 0: return 'timeout_black'
         # 2. Vérification des coups légaux restants
         if not self.has_legal_moves(self.current):
             if self.is_check(self.current):
@@ -772,28 +774,23 @@ class ChessGUI:
         )
         self.status.pack(pady=10)
         
-        tk.Label(
-            self.right,
-            text="Historique des Coups",
-            font=("Segoe UI", 14, "bold"),
-            bg="#2b2b2b",
-            fg="#ffffff"
-        )
-        self.right.pack_propagate(False) # Garde la taille du panneau fixe
-        self.right.config(width=240)
+        self.clock_frame = tk.Frame(self.right, bg="#2b2b2b")
+        self.clock_frame.pack(pady=10, padx=10, fill="x")
+
+        self.white_clock_lbl = tk.Label(self.clock_frame, text="⬜ Blanc: 10:00", font=("Consolas", 12, "bold"), bg="#1a1a1a", fg="#ffffff", padx=10, pady=5)
+        self.white_clock_lbl.pack(side="left", expand=True, fill="x", padx=2)
+
+        self.black_clock_lbl = tk.Label(self.clock_frame, text="⬛ Noir: 10:00", font=("Consolas", 12, "bold"), bg="#1a1a1a", fg="#aaaaaa", padx=10, pady=5)
+        self.black_clock_lbl.pack(side="right", expand=True, fill="x", padx=2)
+
+        tk.Label(self.right, text="Historique des Coups", font=("Segoe UI", 12, "bold"), bg="#2b2b2b", fg="#ffffff").pack(pady=5)
         
-        self.history = tk.Text(
-            self.right,
-            width=25,
-            height=28,
-            bg="#1a1a1a",
-            fg="#dddddd",
-            font=("Consolas", 10),
-            relief="flat",
-            padx=10,
-            pady=10
-        )
+        self.history = tk.Text(self.right, width=25, height=22, bg="#1a1a1a", fg="#dddddd", font=("Consolas", 10), relief="flat", padx=10, pady=10)
         self.history.pack(padx=15, pady=5)
+
+        # 🕒 LANCEMENT DU CHRONOMÈTRE DE L'INTERFACE
+        self.last_tick = self.root.winfo_fpixels("1c") # Permet d'obtenir un repère de temps précis
+        self.update_clock_loop()
         
         # Styles de boutons modernes
         btn_style = {"font": ("Segoe UI", 10, "bold"), "fg": "white", "bd": 0, "height": 2, "width": 20, "cursor": "hand2"}
@@ -997,7 +994,37 @@ class ChessGUI:
     # =====================================================
     # STATUS
     # =====================================================
+    def update_clock_loop(self):
+        # Si la partie est finie, on arrête le chronomètre
+        game_result = self.chess.check_game_over()
+        if game_result:
+            self.update_status()
+            return
 
+        # Décompte du joueur actif (0.1 seconde par tick de 100ms)
+        self.chess.clocks[self.chess.current] -= 0.1
+        if self.chess.clocks[self.chess.current] < 0:
+            self.chess.clocks[self.chess.current] = 0
+
+        # Formatage du temps en MM:SS
+        w_min, w_sec = divmod(int(self.chess.clocks[0]), 60)
+        b_min, b_sec = divmod(int(self.chess.clocks[1]), 60)
+
+        # Mise à jour visuelle des labels
+        self.white_clock_lbl.config(text=f"⬜ Blanc: {w_min:02d}:{w_sec:02d}")
+        self.black_clock_lbl.config(text=f"⬛ Noir: {b_min:02d}:{b_sec:02d}")
+
+        # Mettre en surbrillance le chrono du joueur actif
+        if self.chess.current == 0:
+            self.white_clock_lbl.config(bg="#444444", fg="#00FF88")
+            self.black_clock_lbl.config(bg="#1a1a1a", fg="#888888")
+        else:
+            self.white_clock_lbl.config(bg="#1a1a1a", fg="#888888")
+            self.black_clock_lbl.config(bg="#444444", fg="#00FF88")
+
+        # Relance la fonction dans 100ms
+        self.root.after(100, self.update_clock_loop)
+        
     def update_status(self):
         player = self.white_name.get() if self.chess.current == 0 else self.black_name.get()
         text = f"Tour de {player}"
@@ -1017,20 +1044,25 @@ class ChessGUI:
                 winner = self.black_name.get() if self.chess.current == 0 else self.white_name.get()
                 title_text = "ÉCHEC ET MAT"
                 sub_text = f"Victoire de {winner} !"
-                bg_color = "#4a0d0d" # Rouge sombre pro
+                bg_color = "#4a0d0d"
                 text_color = "#FF3333"
+            elif game_result in ['timeout_white', 'timeout_black']:
+                winner = self.black_name.get() if game_result == 'timeout_white' else self.white_name.get()
+                title_text = "PERDU AU TEMPS"
+                sub_text = f"Victoire de {winner} !"
+                bg_color = "#4a2a0d"  # Couleur ambrée/orange pour le temps
+                text_color = "#FF9800"
             else:
                 title_text = "MATCH NUL (PAT)"
-                text_color = "#2196F3" # Bleu moderne
-                bg_color = "#122338"  # Bleu-noir sombre
-                
+                text_color = "#2196F3"
+                bg_color = "#122338"
                 if game_result == 'stalemate_no_moves':
                     sub_text = f"{player} n'a plus de coup légal."
                 elif game_result == 'stalemate_material':
                     sub_text = "Manque de pièces pour mater."
                 elif game_result == 'stalemate_repetition':
                     sub_text = "Position répétée 3 fois."
-
+                    
             # 2. Mise à jour du bandeau de texte du bas
             self.status.config(text=f"FIN DE PARTIE : {title_text}", fg=text_color)
 
