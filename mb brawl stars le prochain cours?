@@ -164,50 +164,44 @@ class Pawn(Piece):
         return "P"
 
     def is_valid_move(self, new_pos, board):
-
         direction = 1 if self.color == 0 else -1
-
         dc = ord(new_pos.column) - ord(self.position.column)
         dr = new_pos.row - self.position.row
-
         target = board.get_piece(new_pos)
 
         # avancer
         if dc == 0:
-
             if dr == direction and target is None:
                 return True
-
             start_row = 2 if self.color == 0 else 7
-
             if self.position.row == start_row and dr == 2 * direction:
-
-                middle = Position(
-                    self.position.column,
-                    self.position.row + direction
-                )
-
-                return (
-                    board.get_piece(middle) is None
-                    and target is None
-                )
+                middle = Position(self.position.column, self.position.row + direction)
+                return board.get_piece(middle) is None and target is None
 
         # capture
         if abs(dc) == 1 and dr == direction:
-
             if target and target.color != self.color:
                 return True
 
-            # en passant
-            adjacent = Position(new_pos.column, self.position.row)
-            adjacent_piece = board.get_piece(adjacent)
+            # 🔄 EN PASSANT CORRIGÉ
+            adjacent_pos = Position(new_pos.column, self.position.row)
+            adjacent_piece = board.get_piece(adjacent_pos)
 
             if (
                 adjacent_piece
                 and isinstance(adjacent_piece, Pawn)
                 and adjacent_piece.color != self.color
             ):
-                return True
+                # On vérifie si le dernier coup joué correspond à ce pion adjacent
+                if board.chess.last_move:
+                    last_start, last_end = board.chess.last_move
+                    
+                    # Le pion adverse doit avoir fini sa course sur la case adjacente
+                    if str(last_end) == str(adjacent_pos):
+                        # Il doit être parti de sa rangée initiale (7 pour les noirs, 2 pour les blancs)
+                        enemy_start_row = 7 if adjacent_piece.color == 1 else 2
+                        if last_start.row == enemy_start_row:
+                            return True
 
         return False
 
@@ -463,8 +457,8 @@ class Chess:
 
         self.board = Board()
         self.board.chess = self
-
         self.current = 0
+        self.last_move = None
 
     def switch_player(self):
         self.current = 1 if self.current == 0 else 0
@@ -865,7 +859,8 @@ class ChessGUI:
             if self.chess.is_valid_move(self.selected, clicked):
 
                 moving_piece = self.chess.board.get_piece(self.selected)
-
+                
+                self.chess.last_move = (self.selected.copy(), clicked.copy())
                 self.chess.board.move_piece(
                     moving_piece,
                     clicked
@@ -909,6 +904,8 @@ class ChessGUI:
         start, end = move
 
         piece = self.chess.board.get_piece(start)
+        
+        self.chess.last_move = (start.copy(), end.copy())
 
         self.chess.board.move_piece(piece, end)
 
