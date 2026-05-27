@@ -183,7 +183,7 @@ class Pawn(Piece):
             if target and target.color != self.color:
                 return True
 
-            # 🔄 EN PASSANT CORRIGÉ
+            #EN PASSANT
             adjacent_pos = Position(new_pos.column, self.position.row)
             adjacent_piece = board.get_piece(adjacent_pos)
 
@@ -198,9 +198,8 @@ class Pawn(Piece):
                     
                     # Le pion adverse doit avoir fini sa course sur la case adjacente
                     if str(last_end) == str(adjacent_pos):
-                        # Il doit être parti de sa rangée initiale (7 pour les noirs, 2 pour les blancs)
-                        enemy_start_row = 7 if adjacent_piece.color == 1 else 2
-                        if last_start.row == enemy_start_row:
+                        # MODIFICATION : On vérifie directement si le pion a avancé de 2 cases
+                        if abs(last_start.row - last_end.row) == 2:
                             return True
 
         return False
@@ -578,6 +577,8 @@ class ChessGUI:
     # =====================================================
 
     def show_menu(self):
+        # On arrête tout minuteur en arrière-plan en revenant au menu
+        self.timer_running = False
 
         for w in self.root.winfo_children():
             w.destroy()
@@ -594,6 +595,9 @@ class ChessGUI:
 
         self.white_name = tk.StringVar(value="Joueur Blanc")
         self.black_name = tk.StringVar(value="Joueur Noir")
+        
+        # Variable liée pour stocker la sélection du temps (5 min par défaut)
+        self.selected_time = tk.StringVar(value="5")
 
         tk.Label(
             self.root,
@@ -618,6 +622,31 @@ class ChessGUI:
             self.root,
             textvariable=self.black_name
         ).pack(pady=5)
+
+        # Ajout visuel de la sélection de temps (1, 3, 5, 10 min)
+        tk.Label(
+            self.root,
+            text="Choisir le temps de jeu par joueur",
+            bg="#1e1e1e",
+            fg="white",
+            font=("Helvetica", 11, "bold")
+        ).pack(pady=(15, 5))
+
+        time_frame = tk.Frame(self.root, bg="#1e1e1e")
+        time_frame.pack(pady=5)
+
+        for duration in ["1", "3", "5", "10"]:
+            tk.Radiobutton(
+                time_frame,
+                text=f"{duration} min",
+                variable=self.selected_time,
+                value=duration,
+                bg="#1e1e1e",
+                fg="white",
+                selectcolor="#333333",
+                activebackground="#1e1e1e",
+                activeforeground="white"
+            ).pack(side="left", padx=10)
 
         tk.Button(
             self.root,
@@ -683,6 +712,22 @@ class ChessGUI:
         self.right = tk.Frame(self.main, bg="#2b2b2b", width=250)
         self.right.pack(side="right", fill="y")
         
+        # Configuration et injection des chronomètres
+        chosen_minutes = int(self.selected_time.get())
+        self.white_time = chosen_minutes * 60
+        self.black_time = chosen_minutes * 60
+        self.timer_running = True
+
+        self.timer_label = tk.Label(
+            self.left,
+            text="",
+            font=("Consolas", 16, "bold"),
+            bg="#1e1e1e",
+            fg="#FFD700"
+        )
+        self.timer_label.pack(pady=5)
+        self.update_timer_display()
+
         self.canvas = tk.Canvas(
             self.left,
             width=576,
@@ -749,6 +794,46 @@ class ChessGUI:
             ).pack(pady=5)
         
         self.draw_board()  # 2. seulement après création du canvas
+        
+        # Lancement de la boucle temporelle du minuteur
+        self.root.after(1000, self.tick_timer)
+
+    # =====================================================
+    # TIMER UTILS
+    # =====================================================
+
+    def update_timer_display(self):
+        w_min, w_sec = divmod(self.white_time, 60)
+        b_min, b_sec = divmod(self.black_time, 60)
+        self.timer_label.config(
+            text=f"Blanc: {w_min:02d}:{w_sec:02d}  │  Noir: {b_min:02d}:{b_sec:02d}"
+        )
+
+    def tick_timer(self):
+        if not hasattr(self, 'timer_running') or not self.timer_running:
+            return
+
+        if self.chess.current == 0:
+            self.white_time -= 1
+            if self.white_time <= 0:
+                self.white_time = 0
+                self.update_timer_display()
+                self.timer_running = False
+                messagebox.showinfo("Fin de la partie", f"Temps écoulé ! {self.black_name.get()} gagne au temps.")
+                self.show_menu()
+                return
+        else:
+            self.black_time -= 1
+            if self.black_time <= 0:
+                self.black_time = 0
+                self.update_timer_display()
+                self.timer_running = False
+                messagebox.showinfo("Fin de la partie", f"Temps écoulé ! {self.white_name.get()} gagne au temps.")
+                self.show_menu()
+                return
+
+        self.update_timer_display()
+        self.root.after(1000, self.tick_timer)
 
     # =====================================================
     # DRAW
@@ -854,6 +939,9 @@ class ChessGUI:
     # =====================================================
 
     def on_click(self, event):
+        # Bloquer les clics si le chronomètre est à l'arrêt
+        if hasattr(self, 'timer_running') and not self.timer_running:
+            return
 
         if self.ai and self.chess.current == 1:
             return
@@ -914,6 +1002,9 @@ class ChessGUI:
     # =====================================================
 
     def play_ai(self):
+        # Bloquer l'IA si le chronomètre est arrêté
+        if hasattr(self, 'timer_running') and not self.timer_running:
+            return
 
         move = self.ai.choose_move(self.chess, 1)
 
