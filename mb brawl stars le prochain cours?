@@ -780,6 +780,25 @@ class ChessGUI:
 
                 column = chr(ord('a') + col)
                 rank = 8 - row
+                if col == 0:
+                    text_color = dark if row % 2 == 0 else light
+                    self.canvas.create_text(
+                        x1 + 6, y1 + 12,
+                        text=str(rank),
+                        font=("Helvetica", 11, "bold"),
+                        fill=text_color,
+                        anchor="nw"
+                    )
+                
+                if row == 7:
+                    text_color = light if col % 2 == 0 else dark
+                    self.canvas.create_text(
+                        x2 - 6, y2 - 6,
+                        text=column,
+                        font=("Helvetica", 11, "bold"),
+                        fill=text_color,
+                        anchor="se"
+                    )
 
                 pos = Position(column, rank)
                 piece = self.chess.board.get_piece(pos)
