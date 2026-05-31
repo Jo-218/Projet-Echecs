@@ -42,18 +42,13 @@ class King(Piece):
         return "K"
 
     def is_valid_move(self, new_pos, board):
-
         dc = abs(ord(new_pos.column) - ord(self.position.column))
         dr = abs(new_pos.row - self.position.row)
 
-        # déplacement normal
         if max(dc, dr) == 1:
             return True
 
-        # roque
         if not self.has_moved and dr == 0:
-
-            # petit roque
             if dc == 2 and new_pos.column == 'g':
                 if board.chess.is_check(self.color):
                     return False
@@ -63,7 +58,6 @@ class King(Piece):
                         return False
                     return board.is_path_clear(self.position, Position('h', self.position.row))
 
-            # grand roque
             if dc == 2 and new_pos.column == 'c':
                 if board.chess.is_check(self.color):
                     return False
@@ -130,7 +124,6 @@ class Pawn(Piece):
         dr = new_pos.row - self.position.row
         target = board.get_piece(new_pos)
 
-        # avancer
         if dc == 0:
             if dr == direction and target is None:
                 return True
@@ -139,12 +132,10 @@ class Pawn(Piece):
                 middle = Position(self.position.column, self.position.row + direction)
                 return board.get_piece(middle) is None and target is None
 
-        # capture
         if abs(dc) == 1 and dr == direction:
             if target and target.color != self.color:
                 return True
 
-            # EN PASSANT
             adjacent_pos = Position(new_pos.column, self.position.row)
             adjacent_piece = board.get_piece(adjacent_pos)
 
@@ -155,9 +146,7 @@ class Pawn(Piece):
             ):
                 if board.chess.last_move:
                     last_start, last_end = board.chess.last_move
-                    
                     if str(last_end) == str(adjacent_pos):
-                        # On vérifie que le pion adverse vient d'avancer de 2 cases
                         if abs(last_start.row - last_end.row) == 2:
                             return True
 
@@ -182,7 +171,6 @@ class Board:
         return self.board.get(str(position))
 
     def init_board(self):
-        # blancs
         self.add_piece(Rook(Position('a', 1), 0))
         self.add_piece(Knight(Position('b', 1), 0))
         self.add_piece(Bishop(Position('c', 1), 0))
@@ -195,7 +183,6 @@ class Board:
         for c in 'abcdefgh':
             self.add_piece(Pawn(Position(c, 2), 0))
 
-        # noirs
         self.add_piece(Rook(Position('a', 8), 1))
         self.add_piece(Knight(Position('b', 8), 1))
         self.add_piece(Bishop(Position('c', 8), 1))
@@ -239,7 +226,6 @@ class Board:
         if target:
             self.pieces.remove(target)
 
-        # en passant
         if (
             isinstance(piece, Pawn)
             and piece.position.column != new_pos.column
@@ -251,7 +237,6 @@ class Board:
                 self.pieces.remove(captured)
                 del self.board[str(captured_pos)]
 
-        # roque
         if isinstance(piece, King):
             if old == 'e1' and str(new_pos) == 'g1':
                 rook = self.get_piece(Position('h', 1))
@@ -271,7 +256,6 @@ class Board:
 
         self.board[str(new_pos)] = piece
 
-        # promotion
         if isinstance(piece, Pawn):
             if piece.color == 0 and new_pos.row == 8:
                 self.promote(piece)
@@ -347,11 +331,9 @@ class AI:
         if not moves:
             return None
 
-        # facile
         if self.difficulty == 'easy':
             return random.choice(moves)
 
-        # moyen : privilégie captures
         captures = []
         for move in moves:
             target = chess.board.get_piece(move[1])
@@ -374,7 +356,6 @@ class Chess:
         self.board.chess = self
         self.current = 0
         
-        # Initialisation du chronomètre selon le choix (0 = illimité)
         self.timed = (time_limit_minutes > 0)
         if self.timed:
             self.clocks = [time_limit_minutes * 60.0, time_limit_minutes * 60.0]
@@ -511,11 +492,9 @@ class ChessGUI:
         self.images = {}
         pieces = ["K", "Q", "R", "B", "N", "P"]
         for p in pieces:
-            # blanc
             img = Image.open(f"pieces/w{p.lower()}.png")
             img = img.resize((64, 64), Image.Resampling.LANCZOS)
             self.images[p + "0"] = ImageTk.PhotoImage(img)
-            # noir
             img = Image.open(f"pieces/b{p.lower()}.png")
             img = img.resize((64, 64), Image.Resampling.LANCZOS)
             self.images[p + "1"] = ImageTk.PhotoImage(img)
@@ -535,7 +514,7 @@ class ChessGUI:
 
         self.white_name = tk.StringVar(value="Joueur Blanc")
         self.black_name = tk.StringVar(value="Joueur Noir")
-        self.selected_time = tk.StringVar(value="∞") # Par défaut: Sans limite de temps
+        self.selected_time = tk.StringVar(value="∞")
 
         tk.Label(self.root, text="Pseudo Blanc", bg="#1e1e1e", fg="white").pack()
         tk.Entry(self.root, textvariable=self.white_name).pack(pady=5)
@@ -548,7 +527,6 @@ class ChessGUI:
         time_frame = tk.Frame(self.root, bg="#1e1e1e")
         time_frame.pack(pady=5)
 
-        # Ajout de l'option infini "∞" pour la partie sans limite de temps
         for duration in ["1", "3", "5", "10", "∞"]:
             tk.Radiobutton(
                 time_frame, text=f"{duration} min" if duration != "∞" else "Illimité", 
@@ -597,13 +575,8 @@ class ChessGUI:
         self.right.pack_propagate(False)
         self.right.config(width=240)
         
-        # Le minuteur au format original (grand label jaune central au-dessus de l'échiquier)
         self.timer_label = tk.Label(
-            self.left,
-            text="",
-            font=("Consolas", 16, "bold"),
-            bg="#1e1e1e",
-            fg="#FFD700"
+            self.left, text="", font=("Consolas", 16, "bold"), bg="#1e1e1e", fg="#FFD700"
         )
         self.timer_label.pack(pady=5)
 
@@ -655,7 +628,6 @@ class ChessGUI:
                 column = chr(ord('a') + col)
                 rank = 8 - row
                 
-                # Annotations
                 if col == 0:
                     text_color = dark if row % 2 == 0 else light
                     self.canvas.create_text(x1 + 6, y1 + 12, text=str(rank), font=("Helvetica", 11, "bold"), fill=text_color, anchor="nw")
@@ -675,7 +647,6 @@ class ChessGUI:
                             self.canvas.img_refs = []
                         self.canvas.img_refs.append(img)
 
-        # Coups possibles (reprise du style originel des ronds verts pleins)
         if self.selected:
             for c in 'abcdefgh':
                 for r in range(1, 9):
@@ -787,7 +758,6 @@ class ChessGUI:
             w_min, w_sec = divmod(int(self.chess.clocks[0]), 60)
             b_min, b_sec = divmod(int(self.chess.clocks[1]), 60)
 
-            # Style du minuteur originel
             self.timer_label.config(text=f"Blanc: {w_min:02d}:{w_sec:02d}  │  Noir: {b_min:02d}:{b_sec:02d}")
         else:
             self.timer_label.config(text="Partie sans limite de temps")
@@ -807,42 +777,58 @@ class ChessGUI:
         game_result = self.chess.check_game_over()
         
         if game_result:
-            if game_result == 'checkmate':
-                winner = self.black_name.get() if self.chess.current == 0 else self.white_name.get()
-                title_text = "ÉCHEC ET MAT"
-                sub_text = f"Victoire de {winner} !"
-                bg_color = "#4a0d0d"
-                text_color = "#FF3333"
-            elif game_result in ['timeout_white', 'timeout_black']:
-                winner = self.black_name.get() if game_result == 'timeout_white' else self.white_name.get()
-                title_text = "PERDU AU TEMPS"
-                sub_text = f"Victoire de {winner} !"
-                bg_color = "#4a2a0d"  
-                text_color = "#FF9800"
-            else:
-                title_text = "MATCH NUL (PAT)"
-                text_color = "#2196F3"
-                bg_color = "#122338"
-                if game_result == 'stalemate_no_moves':
-                    sub_text = f"{player} n'a plus de coup légal."
-                elif game_result == 'stalemate_material':
-                    sub_text = "Manque de pièces pour mater."
-                elif game_result == 'stalemate_repetition':
-                    sub_text = "Position répétée 3 fois."
-                    
-            self.status.config(text=f"FIN DE PARTIE : {title_text}", fg=text_color)
-
+            # 1. Assombrir tout le plateau avec un filtre
             self.canvas.create_rectangle(
-                40, 200, 536, 376, 
-                fill=bg_color, outline=text_color, width=3
+                0, 0, 576, 576, 
+                fill="#000000", stipple="gray50", outline=""
+            )
+            
+            # 2. Détermination du texte et des couleurs de la bannière
+            banner_color = "#262421"  # Gris très sombre pour la bannière
+            
+            if game_result == 'checkmate':
+                winner_name = self.black_name.get() if self.chess.current == 0 else self.white_name.get()
+                main_title = "ÉCHEC ET MAT"
+                sub_title = f"{winner_name} remporte la partie."
+                accent_color = "#81B64C"  # Vert victoire (style chess.com)
+                
+            elif game_result in ['timeout_white', 'timeout_black']:
+                winner_name = self.black_name.get() if game_result == 'timeout_white' else self.white_name.get()
+                main_title = "TEMPS ÉCOULÉ"
+                sub_title = f"{winner_name} gagne au temps."
+                accent_color = "#D9534F"  # Rouge défaite
+                
+            else:
+                main_title = "MATCH NUL"
+                accent_color = "#888888"  # Gris neutre
+                
+                if game_result == 'stalemate_no_moves':
+                    sub_title = "Par pat (aucun coup légal)."
+                elif game_result == 'stalemate_material':
+                    sub_title = "Par matériel insuffisant."
+                elif game_result == 'stalemate_repetition':
+                    sub_title = "Par répétition de la position."
+                    
+            self.status.config(text="FIN DE PARTIE", fg="#FFFFFF")
+
+            # 3. Dessin de la grande bannière horizontale
+            cy = 576 / 2
+            
+            # Ligne de bordure colorée (haut et bas)
+            self.canvas.create_rectangle(0, cy - 62, 576, cy + 62, fill=accent_color, outline="")
+            
+            # Bande principale (Gris sombre)
+            self.canvas.create_rectangle(0, cy - 60, 576, cy + 60, fill=banner_color, outline="")
+            
+            # 4. Textes centrés
+            self.canvas.create_text(
+                576 / 2, cy - 15, 
+                text=main_title, font=("Helvetica", 32, "bold"), fill="#FFFFFF", justify="center"
             )
             
             self.canvas.create_text(
-                288, 255, text=title_text, font=("Segoe UI", 26, "bold"), fill=text_color
-            )
-            
-            self.canvas.create_text(
-                288, 315, text=sub_text, font=("Segoe UI", 14), fill="#ffffff"
+                576 / 2, cy + 25, 
+                text=sub_title, font=("Helvetica", 14), fill="#C3C3C0", justify="center"
             )
             
             self.selected = None
